@@ -1,0 +1,36 @@
+{
+  "name": "@webforge/web",
+  "version": "0.1.0",
+  "description": "WebForge web builder interface application",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@webforge/compiler": "workspace:*",
+    "@webforge/engine-admin": "workspace:*",
+    "@webforge/engine-api": "workspace:*",
+    "@webforge/engine-data": "workspace:*",
+    "@webforge/engine-ui": "workspace:*",
+    "@webforge/modules": "workspace:*",
+    "@webforge/questionnaire": "workspace:*",
+    "@webforge/spec": "workspace:*",
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^20.17.19",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3"
+  }
+}
