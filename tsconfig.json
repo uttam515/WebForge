@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/spec" },
+    { "path": "./packages/compiler" },
+    { "path": "./packages/modules" },
+    { "path": "./packages/questionnaire" },
+    { "path": "./packages/engine-data" },
+    { "path": "./packages/engine-api" },
+    { "path": "./packages/engine-ui" },
+    { "path": "./packages/engine-admin" }
+  ]
+}
