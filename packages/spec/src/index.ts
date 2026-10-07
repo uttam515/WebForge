@@ -1,42 +1,41 @@
 /**
  * @file packages/spec/src/index.ts
- * Canonical AppSpec definition for WebForge.
+ * Public API for @webforge/spec
  *
- * This package will eventually contain:
- * - AppSpec types and Zod runtime validation schemas
- * - Entities and data model specifications
- * - Fields and validation rules
- * - Relationships (1:1, 1:N, N:M)
- * - Pages, layouts, and block tree structures
- * - Users, roles, and granular permission definitions
- * - Business logic and workflow rules
- * - Themes and visual styling tokens
- * - Third-party integration declarations
- * - Schema versioning metadata
- *
- * Rule: This package must remain independent of runtime implementations.
+ * Canonical schema-driven AppSpec definition, structural validation,
+ * semantic validation, and deterministic serialization for WebForge.
  */
 
-import { z } from 'zod';
+// Identity & Branded ID types
+export * from './identity.js';
 
-export const CURRENT_APPSPEC_VERSION = '1.0.0';
+// Schemas & Types
+export * from './metadata.js';
+export * from './settings.js';
+export * from './fields.js';
+export * from './constraints.js';
+export * from './entities.js';
+export * from './auth.js';
+export * from './access.js';
+export * from './admin.js';
+export * from './navigation.js';
+export * from './layouts.js';
+export * from './bindings.js';
+export * from './actions.js';
+export * from './blocks.js';
+export * from './pages.js';
+export * from './rules.js';
+export * from './theme.js';
+export * from './assets.js';
+export * from './integrations.js';
+export * from './provenance.js';
+export * from './app-spec.js';
 
-export const AppSpecVersionSchema = z.string().regex(/^\d+\.\d+\.\d+$/);
+// Validation
+export * from './validation/index.js';
 
-export interface AppSpecMetadata {
-  id: string;
-  name: string;
-  version: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Serialization
+export * from './serialization.js';
 
-export const AppSpecMetadataSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  version: AppSpecVersionSchema,
-  createdAt: z.string().datetime({ offset: true }).or(z.string()),
-  updatedAt: z.string().datetime({ offset: true }).or(z.string()),
-});
-
-export type AppSpecMetadataType = z.infer<typeof AppSpecMetadataSchema>;
+// Golden application fixtures
+export * from './fixtures/index.js';

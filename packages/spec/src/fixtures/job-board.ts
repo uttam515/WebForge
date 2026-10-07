@@ -1,0 +1,512 @@
+import type { AppSpec } from '../app-spec.js';
+import {
+  toAppSpecId,
+  toEntityId,
+  toFieldId,
+  toConstraintId,
+  toPageId,
+  toLayoutId,
+  toBlockId,
+  toRuleId,
+  toAssetId,
+  toRoleId,
+  toMenuId,
+  toMenuItemId,
+  toPolicyId,
+} from '../identity.js';
+
+export const jobBoardFixture: AppSpec = {
+  schemaVersion: '1.0.0',
+  metadata: {
+    id: toAppSpecId('app_jobs_v1'),
+    name: 'TechTalent Board',
+    description: 'Specialized job board for technology and product roles',
+    origin: 'jobboard-starter',
+  },
+  settings: {
+    locale: 'en-US',
+    timezone: 'America/New_York',
+    currency: 'USD',
+    brand: {
+      name: 'TechTalent Board',
+      logoAssetId: toAssetId('asset_job_logo'),
+      tagline: 'Discover high-impact engineering and product careers',
+    },
+    defaultSEO: {
+      title: 'TechTalent | Find Your Next Tech Role',
+      description: 'Explore verified engineering, design, and product listings.',
+    },
+  },
+  assets: [
+    {
+      id: toAssetId('asset_job_logo'),
+      key: 'techtalent_logo',
+      kind: 'image',
+      mimeType: 'image/svg+xml',
+      alt: 'TechTalent Board Logo',
+      visibility: 'public',
+    },
+  ],
+  auth: {
+    methods: ['password', 'magic-link'],
+    signup: {
+      enabled: true,
+      defaultRoleId: toRoleId('role_candidate'),
+    },
+    roles: [
+      {
+        id: toRoleId('role_candidate'),
+        key: 'candidate',
+        label: 'Job Seeker / Candidate',
+      },
+      {
+        id: toRoleId('role_employer'),
+        key: 'employer',
+        label: 'Employer / Recruiter',
+      },
+    ],
+    userEntityId: toEntityId('ent_candidate'),
+  },
+  entities: [
+    {
+      id: toEntityId('ent_candidate'),
+      key: 'candidate',
+      label: 'Candidate',
+      pluralLabel: 'Candidates',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_cnd_email'),
+          key: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true,
+          queryable: { filterable: true, searchable: true },
+        },
+        {
+          id: toFieldId('fld_cnd_name'),
+          key: 'fullName',
+          label: 'Full Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+        {
+          id: toFieldId('fld_cnd_headline'),
+          key: 'headline',
+          label: 'Professional Headline',
+          type: 'text',
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_cnd_email_unique'),
+          key: 'unique_candidate_email',
+          type: 'unique',
+          fieldId: toFieldId('fld_cnd_email'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_company'),
+      key: 'company',
+      label: 'Company',
+      pluralLabel: 'Companies',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_cmp_name'),
+          key: 'name',
+          label: 'Company Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+        {
+          id: toFieldId('fld_cmp_slug'),
+          key: 'slug',
+          label: 'URL Slug',
+          type: 'slug',
+          required: true,
+          config: { sourceFieldId: toFieldId('fld_cmp_name') },
+        },
+        {
+          id: toFieldId('fld_cmp_web'),
+          key: 'website',
+          label: 'Website URL',
+          type: 'url',
+        },
+        {
+          id: toFieldId('fld_cmp_desc'),
+          key: 'description',
+          label: 'Company Description',
+          type: 'textarea',
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_cmp_slug_unique'),
+          key: 'unique_company_slug',
+          type: 'unique',
+          fieldId: toFieldId('fld_cmp_slug'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_job_category'),
+      key: 'jobCategory',
+      label: 'Job Category',
+      pluralLabel: 'Job Categories',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_jcat_name'),
+          key: 'name',
+          label: 'Category Name',
+          type: 'text',
+          required: true,
+          queryable: { filterable: true, searchable: true },
+        },
+        {
+          id: toFieldId('fld_jcat_slug'),
+          key: 'slug',
+          label: 'Slug',
+          type: 'slug',
+          required: true,
+          config: { sourceFieldId: toFieldId('fld_jcat_name') },
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_jcat_slug_unique'),
+          key: 'unique_job_category_slug',
+          type: 'unique',
+          fieldId: toFieldId('fld_jcat_slug'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_skill'),
+      key: 'skill',
+      label: 'Skill',
+      pluralLabel: 'Skills',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_skl_name'),
+          key: 'name',
+          label: 'Skill Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_job_listing'),
+      key: 'jobListing',
+      label: 'Job Listing',
+      pluralLabel: 'Job Listings',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_job_title'),
+          key: 'title',
+          label: 'Job Title',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true, sortable: true },
+        },
+        {
+          id: toFieldId('fld_job_slug'),
+          key: 'slug',
+          label: 'URL Slug',
+          type: 'slug',
+          required: true,
+          config: { sourceFieldId: toFieldId('fld_job_title') },
+        },
+        {
+          id: toFieldId('fld_job_company'),
+          key: 'companyId',
+          label: 'Company',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_company'),
+            onDelete: 'cascade',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_job_category'),
+          key: 'categoryId',
+          label: 'Category',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_job_category'),
+            onDelete: 'restrict',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_job_location'),
+          key: 'location',
+          label: 'Location / Remote',
+          type: 'text',
+          required: true,
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_job_type'),
+          key: 'employmentType',
+          label: 'Employment Type',
+          type: 'select',
+          required: true,
+          config: {
+            options: [
+              { value: 'full_time', label: 'Full Time' },
+              { value: 'part_time', label: 'Part Time' },
+              { value: 'contract', label: 'Contract' },
+              { value: 'internship', label: 'Internship' },
+            ],
+            defaultValue: 'full_time',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_job_salary_min'),
+          key: 'salaryMin',
+          label: 'Minimum Salary',
+          type: 'money',
+          config: { currencyCode: 'USD' },
+          queryable: { sortable: true },
+        },
+        {
+          id: toFieldId('fld_job_salary_max'),
+          key: 'salaryMax',
+          label: 'Maximum Salary',
+          type: 'money',
+          config: { currencyCode: 'USD' },
+        },
+        {
+          id: toFieldId('fld_job_desc'),
+          key: 'description',
+          label: 'Role Description',
+          type: 'richText',
+          required: true,
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_job_slug_unique'),
+          key: 'unique_job_slug',
+          type: 'unique',
+          fieldId: toFieldId('fld_job_slug'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_application'),
+      key: 'jobApplication',
+      label: 'Job Application',
+      pluralLabel: 'Job Applications',
+      system: false,
+      persist: true,
+      ownership: {
+        ownerFieldId: toFieldId('fld_app_candidate'),
+      },
+      fields: [
+        {
+          id: toFieldId('fld_app_job'),
+          key: 'jobId',
+          label: 'Job Listing',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_job_listing'),
+            onDelete: 'cascade',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_app_candidate'),
+          key: 'candidateId',
+          label: 'Candidate',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_candidate'),
+            onDelete: 'cascade',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_app_cover'),
+          key: 'coverLetter',
+          label: 'Cover Letter',
+          type: 'textarea',
+        },
+        {
+          id: toFieldId('fld_app_status'),
+          key: 'status',
+          label: 'Application Status',
+          type: 'select',
+          required: true,
+          config: {
+            options: [
+              { value: 'submitted', label: 'Submitted' },
+              { value: 'reviewed', label: 'Under Review' },
+              { value: 'interview', label: 'Interviewing' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'accepted', label: 'Offer Extended' },
+            ],
+            defaultValue: 'submitted',
+          },
+          queryable: { filterable: true },
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_app_unique'),
+          key: 'unique_job_candidate_application',
+          type: 'compositeUnique',
+          fieldIds: [toFieldId('fld_app_job'), toFieldId('fld_app_candidate')],
+        },
+      ],
+    },
+  ],
+  access: {
+    policies: [
+      {
+        id: toPolicyId('pol_job_read'),
+        subject: 'anonymous',
+        entityId: toEntityId('ent_job_listing'),
+        operations: ['read'],
+        scope: 'public',
+      },
+      {
+        id: toPolicyId('pol_app_own'),
+        subject: toRoleId('role_candidate'),
+        entityId: toEntityId('ent_application'),
+        operations: ['create', 'read'],
+        scope: 'own',
+      },
+    ],
+  },
+  navigation: {
+    menus: [
+      {
+        id: toMenuId('menu_job_main'),
+        key: 'job_main_menu',
+        label: 'Main Navigation',
+        items: [
+          {
+            id: toMenuItemId('item_jobs'),
+            label: 'Jobs',
+            path: '/jobs',
+            pageId: toPageId('page_jobs'),
+          },
+        ],
+      },
+    ],
+  },
+  layouts: [
+    {
+      id: toLayoutId('layout_job_default'),
+      key: 'job_default_layout',
+      label: 'Job Board Layout',
+      regions: [
+        {
+          name: 'header',
+          blocks: [
+            {
+              id: toBlockId('blk_job_nav'),
+              type: 'Navbar',
+              props: {
+                brandTitle: 'TechTalent Board',
+                logoAssetId: toAssetId('asset_job_logo'),
+                menuId: toMenuId('menu_job_main'),
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  pages: [
+    {
+      id: toPageId('page_jobs'),
+      key: 'job_board',
+      route: '/jobs',
+      title: 'Browse Open Roles',
+      layoutId: toLayoutId('layout_job_default'),
+      blocks: [
+        {
+          id: toBlockId('blk_job_search'),
+          type: 'Search',
+          props: {
+            entityId: toEntityId('ent_job_listing'),
+            targetFields: [toFieldId('fld_job_title'), toFieldId('fld_job_location')],
+            placeholder: 'Search roles by title or location...',
+          },
+        },
+        {
+          id: toBlockId('blk_job_list'),
+          type: 'EntityList',
+          props: {
+            entityId: toEntityId('ent_job_listing'),
+            view: 'grid',
+            filterFields: [toFieldId('fld_job_category'), toFieldId('fld_job_type')],
+            sortField: toFieldId('fld_job_salary_min'),
+          },
+        },
+      ],
+    },
+  ],
+  rules: [
+    {
+      id: toRuleId('rule_app_notify_candidate'),
+      key: 'notify_application_submitted',
+      label: 'Notify on Application Submitted',
+      kind: 'notify',
+      triggerEntityId: toEntityId('ent_application'),
+      triggerEvent: 'create',
+      channel: 'email',
+      recipient: 'owner',
+      template: 'job_application_received',
+    },
+  ],
+  theme: {
+    colorModes: 'light-dark',
+    colors: {
+      primary: '#2563eb',
+      primaryForeground: '#ffffff',
+      secondary: '#eff6ff',
+      secondaryForeground: '#1e40af',
+      surface: '#ffffff',
+      surfaceForeground: '#1e293b',
+      background: '#f8fafc',
+      text: '#0f172a',
+      muted: '#64748b',
+      mutedForeground: '#94a3b8',
+      border: '#cbd5e1',
+      accent: '#3b82f6',
+      accentForeground: '#ffffff',
+      destructive: '#ef4444',
+      destructiveForeground: '#ffffff',
+    },
+    typography: {
+      fontFamily: {
+        heading: 'Inter',
+        body: 'Inter',
+      },
+    },
+  },
+  integrations: [],
+};

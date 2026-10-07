@@ -1,0 +1,465 @@
+import type { AppSpec } from '../app-spec.js';
+import {
+  toAppSpecId,
+  toEntityId,
+  toFieldId,
+  toConstraintId,
+  toPageId,
+  toLayoutId,
+  toBlockId,
+  toRuleId,
+  toAssetId,
+  toRoleId,
+  toMenuId,
+  toMenuItemId,
+  toPolicyId,
+} from '../identity.js';
+
+export const bookingFixture: AppSpec = {
+  schemaVersion: '1.0.0',
+  metadata: {
+    id: toAppSpecId('app_booking_v1'),
+    name: 'Aura Wellness Appointments',
+    description: 'Service appointment scheduling and client management',
+    origin: 'booking-starter',
+  },
+  settings: {
+    locale: 'en-US',
+    timezone: 'America/Los_Angeles',
+    currency: 'USD',
+    brand: {
+      name: 'Aura Wellness',
+      logoAssetId: toAssetId('asset_aura_logo'),
+      tagline: 'Personalized wellness & therapeutic care',
+    },
+    defaultSEO: {
+      title: 'Aura Wellness | Book Your Session',
+      description: 'Schedule appointments with certified wellness professionals.',
+    },
+  },
+  assets: [
+    {
+      id: toAssetId('asset_aura_logo'),
+      key: 'aura_logo',
+      kind: 'image',
+      mimeType: 'image/svg+xml',
+      alt: 'Aura Wellness Logo',
+      visibility: 'public',
+    },
+  ],
+  auth: {
+    methods: ['password', 'magic-link'],
+    signup: {
+      enabled: true,
+      defaultRoleId: toRoleId('role_client'),
+    },
+    roles: [
+      {
+        id: toRoleId('role_client'),
+        key: 'client',
+        label: 'Client',
+      },
+      {
+        id: toRoleId('role_staff'),
+        key: 'staff',
+        label: 'Therapist / Staff',
+      },
+    ],
+    userEntityId: toEntityId('ent_client'),
+  },
+  entities: [
+    {
+      id: toEntityId('ent_client'),
+      key: 'client',
+      label: 'Client',
+      pluralLabel: 'Clients',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_cli_email'),
+          key: 'email',
+          label: 'Email Address',
+          type: 'email',
+          required: true,
+          queryable: { filterable: true, searchable: true },
+        },
+        {
+          id: toFieldId('fld_cli_name'),
+          key: 'fullName',
+          label: 'Full Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+        {
+          id: toFieldId('fld_cli_phone'),
+          key: 'phone',
+          label: 'Phone Number',
+          type: 'text',
+          config: { format: 'phone' },
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_cli_email_unique'),
+          key: 'unique_client_email',
+          type: 'unique',
+          fieldId: toFieldId('fld_cli_email'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_location'),
+      key: 'location',
+      label: 'Clinic Location',
+      pluralLabel: 'Clinic Locations',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_loc_name'),
+          key: 'name',
+          label: 'Location Name',
+          type: 'text',
+          required: true,
+        },
+        {
+          id: toFieldId('fld_loc_address'),
+          key: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true,
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_staff'),
+      key: 'staffMember',
+      label: 'Staff Member',
+      pluralLabel: 'Staff Members',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_stf_name'),
+          key: 'name',
+          label: 'Full Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+        {
+          id: toFieldId('fld_stf_specialty'),
+          key: 'specialty',
+          label: 'Specialty',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_service'),
+      key: 'service',
+      label: 'Service',
+      pluralLabel: 'Services',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_srv_name'),
+          key: 'name',
+          label: 'Service Name',
+          type: 'text',
+          required: true,
+          queryable: { searchable: true },
+        },
+        {
+          id: toFieldId('fld_srv_slug'),
+          key: 'slug',
+          label: 'URL Slug',
+          type: 'slug',
+          required: true,
+          config: { sourceFieldId: toFieldId('fld_srv_name') },
+        },
+        {
+          id: toFieldId('fld_srv_duration'),
+          key: 'durationMinutes',
+          label: 'Duration (Minutes)',
+          type: 'number',
+          required: true,
+          config: { integer: true, defaultValue: 60 },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_srv_price'),
+          key: 'price',
+          label: 'Price',
+          type: 'money',
+          required: true,
+          config: { currencyCode: 'USD' },
+          queryable: { sortable: true },
+        },
+        {
+          id: toFieldId('fld_srv_desc'),
+          key: 'description',
+          label: 'Description',
+          type: 'textarea',
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_srv_slug_unique'),
+          key: 'unique_service_slug',
+          type: 'unique',
+          fieldId: toFieldId('fld_srv_slug'),
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_slot'),
+      key: 'scheduleSlot',
+      label: 'Schedule Slot',
+      pluralLabel: 'Schedule Slots',
+      system: false,
+      persist: true,
+      fields: [
+        {
+          id: toFieldId('fld_slt_staff'),
+          key: 'staffId',
+          label: 'Staff Member',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_staff'),
+            onDelete: 'cascade',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_slt_loc'),
+          key: 'locationId',
+          label: 'Location',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_location'),
+            onDelete: 'restrict',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_slt_start'),
+          key: 'startTime',
+          label: 'Start Time',
+          type: 'datetime',
+          required: true,
+          queryable: { filterable: true, sortable: true },
+        },
+        {
+          id: toFieldId('fld_slt_avail'),
+          key: 'isAvailable',
+          label: 'Is Available',
+          type: 'boolean',
+          config: { defaultValue: true },
+          queryable: { filterable: true },
+        },
+      ],
+    },
+    {
+      id: toEntityId('ent_booking'),
+      key: 'booking',
+      label: 'Booking',
+      pluralLabel: 'Bookings',
+      system: false,
+      persist: true,
+      ownership: {
+        ownerFieldId: toFieldId('fld_bkg_client'),
+      },
+      fields: [
+        {
+          id: toFieldId('fld_bkg_client'),
+          key: 'clientId',
+          label: 'Client',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_client'),
+            onDelete: 'cascade',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_bkg_service'),
+          key: 'serviceId',
+          label: 'Service',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_service'),
+            onDelete: 'restrict',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_bkg_slot'),
+          key: 'slotId',
+          label: 'Schedule Slot',
+          type: 'reference',
+          required: true,
+          config: {
+            targetEntityId: toEntityId('ent_slot'),
+            onDelete: 'restrict',
+          },
+        },
+        {
+          id: toFieldId('fld_bkg_status'),
+          key: 'status',
+          label: 'Status',
+          type: 'select',
+          required: true,
+          config: {
+            options: [
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'cancelled', label: 'Cancelled' },
+            ],
+            defaultValue: 'confirmed',
+          },
+          queryable: { filterable: true },
+        },
+        {
+          id: toFieldId('fld_bkg_notes'),
+          key: 'notes',
+          label: 'Client Notes',
+          type: 'textarea',
+        },
+      ],
+      constraints: [
+        {
+          id: toConstraintId('cst_bkg_slot_unique'),
+          key: 'unique_slot_booking',
+          type: 'unique',
+          fieldId: toFieldId('fld_bkg_slot'),
+        },
+      ],
+    },
+  ],
+  access: {
+    policies: [
+      {
+        id: toPolicyId('pol_srv_read'),
+        subject: 'anonymous',
+        entityId: toEntityId('ent_service'),
+        operations: ['read'],
+        scope: 'public',
+      },
+      {
+        id: toPolicyId('pol_bkg_own'),
+        subject: toRoleId('role_client'),
+        entityId: toEntityId('ent_booking'),
+        operations: ['create', 'read', 'update'],
+        scope: 'own',
+      },
+    ],
+  },
+  navigation: {
+    menus: [
+      {
+        id: toMenuId('menu_bkg_main'),
+        key: 'bkg_main_menu',
+        label: 'Main Menu',
+        items: [
+          {
+            id: toMenuItemId('item_bkg_services'),
+            label: 'Services',
+            path: '/services',
+            pageId: toPageId('page_services'),
+          },
+        ],
+      },
+    ],
+  },
+  layouts: [
+    {
+      id: toLayoutId('layout_bkg_default'),
+      key: 'bkg_default_layout',
+      label: 'Wellness Layout',
+      regions: [
+        {
+          name: 'header',
+          blocks: [
+            {
+              id: toBlockId('blk_bkg_nav'),
+              type: 'Navbar',
+              props: {
+                brandTitle: 'Aura Wellness',
+                logoAssetId: toAssetId('asset_aura_logo'),
+                menuId: toMenuId('menu_bkg_main'),
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  pages: [
+    {
+      id: toPageId('page_services'),
+      key: 'services_catalog',
+      route: '/services',
+      title: 'Our Treatments & Services',
+      layoutId: toLayoutId('layout_bkg_default'),
+      blocks: [
+        {
+          id: toBlockId('blk_srv_list'),
+          type: 'EntityList',
+          props: {
+            entityId: toEntityId('ent_service'),
+            view: 'cards',
+            sortField: toFieldId('fld_srv_price'),
+          },
+        },
+      ],
+    },
+  ],
+  rules: [
+    {
+      id: toRuleId('rule_bkg_confirm_notify'),
+      key: 'notify_booking_confirmed',
+      label: 'Notify Client on Confirmation',
+      kind: 'notify',
+      triggerEntityId: toEntityId('ent_booking'),
+      triggerEvent: 'create',
+      channel: 'email',
+      recipient: 'owner',
+      template: 'booking_confirmation_email',
+    },
+  ],
+  theme: {
+    colorModes: 'light',
+    colors: {
+      primary: '#065f46',
+      primaryForeground: '#ffffff',
+      secondary: '#d1fae5',
+      secondaryForeground: '#064e3b',
+      surface: '#ffffff',
+      surfaceForeground: '#064e3b',
+      background: '#f0fdf4',
+      text: '#14532d',
+      muted: '#6b7280',
+      mutedForeground: '#9ca3af',
+      border: '#a7f3d0',
+      accent: '#10b981',
+      accentForeground: '#ffffff',
+      destructive: '#ef4444',
+      destructiveForeground: '#ffffff',
+    },
+    typography: {
+      fontFamily: {
+        heading: 'Fraunces',
+        body: 'Plus Jakarta Sans',
+      },
+    },
+  },
+  integrations: [],
+};
