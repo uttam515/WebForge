@@ -73,6 +73,7 @@ export function mergeSpecFragments(
 
   const authMethods = new Set<AuthMethod>();
   let signupConfig = baseOverrides?.auth?.signup;
+  let authUserEntityId = baseOverrides?.auth?.userEntityId;
 
   const adminRoles = new Set<RoleId>();
   const adminResourceMap = new Map<string, AdminResource>();
@@ -370,6 +371,9 @@ export function mergeSpecFragments(
       if (fragment.auth.signup) {
         signupConfig = fragment.auth.signup;
       }
+      if (fragment.auth.userEntityId) {
+        authUserEntityId = fragment.auth.userEntityId;
+      }
     }
 
     if (fragment.authExtensions) {
@@ -530,11 +534,12 @@ export function mergeSpecFragments(
   const roles = Array.from(roleIdMap.values());
 
   const auth: AuthSpec | undefined =
-    authMethods.size > 0 || roles.length > 0 || signupConfig
+    authMethods.size > 0 || roles.length > 0 || signupConfig || authUserEntityId
       ? {
           methods: Array.from(authMethods),
           roles,
           signup: signupConfig ?? { enabled: true, defaultRoleId: roles[0]?.id ?? ('' as RoleId) },
+          userEntityId: authUserEntityId,
         }
       : undefined;
 

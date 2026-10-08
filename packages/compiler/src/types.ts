@@ -46,6 +46,8 @@ export interface ResolvedModuleExecution<P = unknown> {
   params: P;
   /** Whether the module was explicitly selected by the caller */
   isExplicit: boolean;
+  /** Set of module IDs this module is permitted to reference (transitive dependency closure) */
+  allowedModuleIds?: ReadonlySet<string>;
 }
 
 /**

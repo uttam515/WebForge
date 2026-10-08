@@ -1,4 +1,4 @@
-import type { ModuleRegistry } from '@webforge/modules';
+import { type ModuleRegistry, getModuleDependencies } from '@webforge/modules';
 import {
   DuplicateModuleError,
   ModuleNotFoundError,
@@ -10,7 +10,8 @@ import type { ModuleSelection, ResolvedModuleExecution } from './types.js';
 
 /**
  * Resolves all explicit module selections and their transitive dependencies, validates
- * parameters, detects cycles, and sorts modules into deterministic execution order.
+ * parameters, detects cycles, calculates dependency closures, and sorts modules into
+ * deterministic execution order.
  */
 export function resolveCompilerDependencies(
   selections: ModuleSelection<unknown>[],
@@ -47,7 +48,7 @@ export function resolveCompilerDependencies(
   while (expansionQueue.length > 0) {
     const currentId = expansionQueue.shift()!;
     const currentExecution = resolvedMap.get(currentId)!;
-    const requiredDepIds = currentExecution.module.requires ?? [];
+    const requiredDepIds = getModuleDependencies(currentExecution.module, currentExecution.params);
 
     for (const depId of requiredDepIds) {
       if (resolvedMap.has(depId)) {
@@ -85,7 +86,7 @@ export function resolveCompilerDependencies(
     path.push(nodeId);
 
     const execution = resolvedMap.get(nodeId)!;
-    const deps = execution.module.requires ?? [];
+    const deps = getModuleDependencies(execution.module, execution.params);
 
     for (const depId of deps) {
       if (!visited.has(depId)) {
@@ -109,7 +110,27 @@ export function resolveCompilerDependencies(
     }
   }
 
-  // 4. Deterministic Topological Sorting (Kahn's Algorithm)
+  // 4. Calculate transitive dependency closure for each module (for reference permission enforcement)
+  for (const id of allIds) {
+    const execution = resolvedMap.get(id)!;
+    const closure = new Set<string>([id]);
+    const queue = [...getModuleDependencies(execution.module, execution.params)];
+
+    while (queue.length > 0) {
+      const depId = queue.shift()!;
+      if (!closure.has(depId)) {
+        closure.add(depId);
+        const depExec = resolvedMap.get(depId);
+        if (depExec) {
+          queue.push(...getModuleDependencies(depExec.module, depExec.params));
+        }
+      }
+    }
+
+    execution.allowedModuleIds = closure;
+  }
+
+  // 5. Deterministic Topological Sorting (Kahn's Algorithm)
   const dependentsMap = new Map<string, string[]>();
   const inDegree = new Map<string, number>();
 
@@ -120,7 +141,7 @@ export function resolveCompilerDependencies(
 
   for (const id of allIds) {
     const execution = resolvedMap.get(id)!;
-    const requires = execution.module.requires ?? [];
+    const requires = getModuleDependencies(execution.module, execution.params);
     inDegree.set(id, requires.length);
 
     for (const depId of requires) {

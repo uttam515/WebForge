@@ -101,8 +101,8 @@ export function composeAppSpec(options: ComposeAppSpecOptions): ComposeAppSpecRe
   const sortedInvocations = resolveModuleDependencies(invocations);
 
   // 4. Execute module contributions in topological order
-  const fragments = sortedInvocations.map(({ module, params }) => {
-    const ctx: ModuleContext = new DefaultModuleContext(module.id);
+  const fragments = sortedInvocations.map(({ module, params, allowedModuleIds }) => {
+    const ctx: ModuleContext = new DefaultModuleContext(module.id, allowedModuleIds);
     return module.contribute(params, ctx);
   });
 

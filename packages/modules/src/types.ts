@@ -196,6 +196,22 @@ export interface SpecFragment {
 }
 
 /**
+ * Specification of module dependencies. Can be a static list of module IDs or a function
+ * evaluating dependencies from validated parameters.
+ */
+export type ModuleRequires<P> = string[] | ((params: P) => string[]);
+
+/**
+ * Helper to retrieve evaluated dependencies for a module and its parameters.
+ */
+export function getModuleDependencies<P>(module: Module<P>, params: P): string[] {
+  if (typeof module.requires === 'function') {
+    return module.requires(params);
+  }
+  return module.requires ?? [];
+}
+
+/**
  * Generic capability module definition.
  * Parameter type P must be explicitly specified (use EmptyModuleParams for parameterless modules).
  */
@@ -206,8 +222,8 @@ export interface Module<P> {
   /** Zod schema for validating input parameters */
   readonly params: z.ZodType<P, z.ZodTypeDef, unknown>;
 
-  /** List of module IDs that must be executed before this module */
-  readonly requires?: string[];
+  /** List of module IDs (or parameter-aware evaluator) that must be executed before this module */
+  readonly requires?: ModuleRequires<P>;
 
   /** Generates an AppSpec fragment based on parameters and context */
   contribute(params: P, ctx: ModuleContext): SpecFragment;

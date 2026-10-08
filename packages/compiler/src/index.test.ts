@@ -12,6 +12,7 @@ import {
   type Module,
   type EmptyModuleParams,
   emptyModuleParamsSchema,
+  registerCoreCapabilities,
 } from '@webforge/modules';
 
 import {
@@ -27,6 +28,7 @@ import {
   MissingTargetError,
   InvalidExtensionError,
   ModuleCompilationError,
+  UndeclaredDependencyError,
 } from './index.js';
 
 const testMetadata: AppSpecMetadata = {
@@ -983,5 +985,407 @@ describe('@webforge/compiler - Compiler Foundation', () => {
         registry,
       ),
     ).toThrow(ModuleCompilationError);
+  });
+
+  it('should compile real core capability modules into complete valid AppSpecs', () => {
+    const registry = new ModuleRegistry();
+    registerCoreCapabilities(registry);
+
+    // End-to-end multi-module compilation: auth + profiles + catalog + reviews
+    const result = compileAppSpec(
+      {
+        metadata: testMetadata,
+        modules: [
+          { moduleId: 'catalog', params: { enableCategories: true, enablePricing: true } },
+          { moduleId: 'reviews', params: { minRating: 1, maxRating: 5 } },
+          { moduleId: 'profiles', params: { enableBio: true } },
+          { moduleId: 'auth', params: { allowSignup: true } },
+        ],
+      },
+      registry,
+    );
+
+    expect(result.spec).toBeDefined();
+    expect(result.spec.entities.length).toBe(5);
+    expect(result.spec.entities.map((e) => e.key)).toEqual([
+      'user',
+      'category',
+      'item',
+      'profile',
+      'review',
+    ]);
+    expect(result.spec.auth?.roles.length).toBe(2);
+    expect(result.spec.admin?.resources.length).toBe(5);
+    expect(result.canonicalJson).toContain('"schemaVersion": "1.0.0"');
+  });
+
+  describe('Cross-Module Reference Isolation & Dependency Graph Authority', () => {
+    it('should throw UndeclaredDependencyError when a module attempts to reference an undeclared module via ctx.forModule()', () => {
+      const registry = new ModuleRegistry();
+
+      const authMod: Module<EmptyModuleParams> = {
+        id: 'auth',
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('user'),
+              key: 'user',
+              label: 'User',
+              pluralLabel: 'Users',
+              fields: [{ id: ctx.toFieldId('email'), key: 'email', label: 'Email', type: 'email' }],
+            },
+          ],
+        }),
+      };
+
+      const blogMod: Module<EmptyModuleParams> = {
+        id: 'blog',
+        // 'auth' is deliberately not declared in requires
+        requires: [],
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('post'),
+              key: 'post',
+              label: 'Post',
+              pluralLabel: 'Posts',
+              fields: [
+                {
+                  id: ctx.toFieldId('authorId'),
+                  key: 'authorId',
+                  label: 'Author',
+                  type: 'reference',
+                  config: {
+                    // Attempting to resolve auth without declared dependency
+                    targetEntityId: ctx.forModule('auth').toEntityId('user'),
+                    onDelete: 'cascade',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      };
+
+      registry.register(authMod).register(blogMod);
+
+      // Both modules are selected in compilation, but blog did not declare dependency on auth
+      expect(() =>
+        compileAppSpec(
+          {
+            metadata: testMetadata,
+            modules: [
+              { moduleId: 'auth', params: {} },
+              { moduleId: 'blog', params: {} },
+            ],
+          },
+          registry,
+        ),
+      ).toThrow(UndeclaredDependencyError);
+    });
+
+    it('should succeed when a module references a declared direct dependency via ctx.forModule()', () => {
+      const registry = new ModuleRegistry();
+
+      const authMod: Module<EmptyModuleParams> = {
+        id: 'auth',
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('user'),
+              key: 'user',
+              label: 'User',
+              pluralLabel: 'Users',
+              fields: [{ id: ctx.toFieldId('email'), key: 'email', label: 'Email', type: 'email' }],
+            },
+          ],
+        }),
+      };
+
+      const blogMod: Module<EmptyModuleParams> = {
+        id: 'blog',
+        requires: ['auth'],
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('post'),
+              key: 'post',
+              label: 'Post',
+              pluralLabel: 'Posts',
+              fields: [
+                {
+                  id: ctx.toFieldId('authorId'),
+                  key: 'authorId',
+                  label: 'Author',
+                  type: 'reference',
+                  config: {
+                    targetEntityId: ctx.forModule('auth').toEntityId('user'),
+                    onDelete: 'cascade',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      };
+
+      registry.register(authMod).register(blogMod);
+
+      const result = compileAppSpec(
+        {
+          metadata: testMetadata,
+          modules: [{ moduleId: 'blog', params: {} }],
+        },
+        registry,
+      );
+
+      expect(result.spec.entities.length).toBe(2);
+      const postEntity = result.spec.entities.find((e) => e.key === 'post')!;
+      const authorField = postEntity.fields.find((f) => f.key === 'authorId')!;
+      expect((authorField.config as { targetEntityId: EntityId }).targetEntityId).toBe(
+        'ent_auth_user',
+      );
+    });
+
+    it('should allow referencing transitive dependencies present in the resolved dependency graph closure', () => {
+      const registry = new ModuleRegistry();
+
+      // C (database/tenant base)
+      const baseMod: Module<EmptyModuleParams> = {
+        id: 'base',
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('tenant'),
+              key: 'tenant',
+              label: 'Tenant',
+              pluralLabel: 'Tenants',
+              fields: [{ id: ctx.toFieldId('name'), key: 'name', label: 'Name', type: 'text' }],
+            },
+          ],
+        }),
+      };
+
+      // B requires C
+      const authMod: Module<EmptyModuleParams> = {
+        id: 'auth',
+        requires: ['base'],
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('user'),
+              key: 'user',
+              label: 'User',
+              pluralLabel: 'Users',
+              fields: [
+                {
+                  id: ctx.toFieldId('tenantId'),
+                  key: 'tenantId',
+                  label: 'Tenant',
+                  type: 'reference',
+                  config: {
+                    targetEntityId: ctx.forModule('base').toEntityId('tenant'),
+                    onDelete: 'cascade',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      };
+
+      // A requires B (which requires C). A should be able to reference both B and C via transitive closure
+      const auditMod: Module<EmptyModuleParams> = {
+        id: 'audit',
+        requires: ['auth'],
+        params: emptyModuleParamsSchema,
+        contribute: (_, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('log'),
+              key: 'log',
+              label: 'Audit Log',
+              pluralLabel: 'Audit Logs',
+              fields: [
+                {
+                  id: ctx.toFieldId('userId'),
+                  key: 'userId',
+                  label: 'User',
+                  type: 'reference',
+                  config: {
+                    targetEntityId: ctx.forModule('auth').toEntityId('user'),
+                    onDelete: 'cascade',
+                  },
+                },
+                {
+                  id: ctx.toFieldId('tenantId'),
+                  key: 'tenantId',
+                  label: 'Tenant',
+                  type: 'reference',
+                  config: {
+                    targetEntityId: ctx.forModule('base').toEntityId('tenant'),
+                    onDelete: 'cascade',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      };
+
+      registry.register(baseMod).register(authMod).register(auditMod);
+
+      const result = compileAppSpec(
+        {
+          metadata: testMetadata,
+          modules: [{ moduleId: 'audit', params: {} }],
+        },
+        registry,
+      );
+
+      expect(result.spec.entities.length).toBe(3);
+      const logEntity = result.spec.entities.find((e) => e.key === 'log')!;
+      const tenantRef = logEntity.fields.find((f) => f.key === 'tenantId')!;
+      expect((tenantRef.config as { targetEntityId: EntityId }).targetEntityId).toBe(
+        'ent_base_tenant',
+      );
+    });
+
+    it('should compile guest registration cleanly without requiring or referencing auth when auth is absent', () => {
+      const registry = new ModuleRegistry();
+      registerCoreCapabilities(registry);
+
+      // Standalone event module
+      const eventsModule: Module<EmptyModuleParams> = {
+        id: 'events',
+        params: emptyModuleParamsSchema,
+        contribute: (_params, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('event'),
+              key: 'event',
+              label: 'Event',
+              pluralLabel: 'Events',
+              fields: [
+                {
+                  id: ctx.toFieldId('title'),
+                  key: 'title',
+                  label: 'Event Title',
+                  type: 'text',
+                  required: true,
+                },
+              ],
+            },
+          ],
+        }),
+      };
+      registry.register(eventsModule);
+
+      // Guest registration: requireAuth = false. Auth module is NOT selected or auto-resolved.
+      const result = compileAppSpec(
+        {
+          metadata: testMetadata,
+          modules: [
+            { moduleId: 'events', params: {} },
+            {
+              moduleId: 'registration',
+              params: {
+                target: {
+                  targetModuleId: 'events',
+                  targetSlotKey: 'event',
+                },
+                requireAuth: false,
+              },
+            },
+          ],
+        },
+        registry,
+      );
+
+      expect(result.spec).toBeDefined();
+      // Only events and registration entities (no auth User entity)
+      expect(result.spec.entities.length).toBe(2);
+      expect(result.spec.entities.map((e) => e.key)).toEqual(['event', 'registration']);
+
+      const regEntity = result.spec.entities.find((e) => e.key === 'registration')!;
+      expect(regEntity.ownership).toBeUndefined();
+      expect(regEntity.fields.map((f) => f.key)).toContain('email');
+      expect(regEntity.fields.map((f) => f.key)).toContain('name');
+      expect(regEntity.fields.map((f) => f.key)).not.toContain('userId');
+
+      // Auth should not be enabled
+      expect(result.spec.auth).toBeUndefined();
+    });
+
+    it('should compile authenticated registration with auto-resolved auth dependency and valid user references', () => {
+      const registry = new ModuleRegistry();
+      registerCoreCapabilities(registry);
+
+      const eventsModule: Module<EmptyModuleParams> = {
+        id: 'events',
+        params: emptyModuleParamsSchema,
+        contribute: (_params, ctx) => ({
+          entities: [
+            {
+              id: ctx.toEntityId('event'),
+              key: 'event',
+              label: 'Event',
+              pluralLabel: 'Events',
+              fields: [
+                {
+                  id: ctx.toFieldId('title'),
+                  key: 'title',
+                  label: 'Event Title',
+                  type: 'text',
+                  required: true,
+                },
+              ],
+            },
+          ],
+        }),
+      };
+      registry.register(eventsModule);
+
+      // Authenticated registration: requireAuth = true. Auth module is automatically resolved as a dependency!
+      const result = compileAppSpec(
+        {
+          metadata: testMetadata,
+          modules: [
+            { moduleId: 'events', params: {} },
+            {
+              moduleId: 'registration',
+              params: {
+                target: {
+                  targetModuleId: 'events',
+                  targetSlotKey: 'event',
+                },
+                requireAuth: true,
+              },
+            },
+          ],
+        },
+        registry,
+      );
+
+      expect(result.spec).toBeDefined();
+      // Entities: user (auto-resolved from auth), event, registration
+      expect(result.spec.entities.length).toBe(3);
+      expect(result.spec.entities.map((e) => e.key)).toEqual(['user', 'event', 'registration']);
+
+      const regEntity = result.spec.entities.find((e) => e.key === 'registration')!;
+      expect(regEntity.ownership?.ownerFieldId).toBe('fld_registration_userId');
+
+      const userField = regEntity.fields.find((f) => f.key === 'userId')!;
+      expect((userField.config as { targetEntityId: EntityId }).targetEntityId).toBe(
+        'ent_auth_user',
+      );
+      expect(result.spec.auth?.userEntityId).toBe('ent_auth_user');
+    });
   });
 });

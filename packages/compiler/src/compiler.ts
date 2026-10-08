@@ -45,7 +45,7 @@ export function compileAppSpec(
   const fragments: SpecFragment[] = [];
 
   for (const execution of resolvedExecutions) {
-    const ctx = new DefaultModuleContext(execution.module.id);
+    const ctx = new DefaultModuleContext(execution.module.id, execution.allowedModuleIds);
     try {
       const fragment = execution.module.contribute(execution.params, ctx);
       fragments.push(fragment);

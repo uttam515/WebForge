@@ -11,6 +11,7 @@ export {
   MissingTargetError,
   InvalidExtensionError,
   ModuleCompilationError,
+  UndeclaredDependencyError,
 } from '@webforge/modules';
 
 /**

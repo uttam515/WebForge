@@ -1,16 +1,17 @@
-import type { Module } from './types.js';
+import { type Module, getModuleDependencies } from './types.js';
 import { MissingDependencyError, CircularDependencyError } from './errors.js';
 
 export interface ModuleInvocation<P = unknown> {
   module: Module<P>;
   params: P;
+  allowedModuleIds?: ReadonlySet<string>;
 }
 
 /**
  * Resolves module dependencies deterministically using topological sorting
  * with alphabetical tie-breaking for independent modules.
  */
-export function resolveModuleDependencies<T extends { module: Module<unknown> }>(
+export function resolveModuleDependencies<T extends { module: Module<unknown>; params?: unknown }>(
   invocations: T[],
 ): T[] {
   const moduleMap = new Map<string, T>();
@@ -21,7 +22,7 @@ export function resolveModuleDependencies<T extends { module: Module<unknown> }>
 
   // 1. Check for missing dependencies
   for (const item of invocations) {
-    const requires = item.module.requires ?? [];
+    const requires = getModuleDependencies(item.module, item.params);
     for (const depId of requires) {
       if (!moduleMap.has(depId)) {
         throw new MissingDependencyError(item.module.id, depId);
@@ -40,7 +41,7 @@ export function resolveModuleDependencies<T extends { module: Module<unknown> }>
     path.push(nodeId);
 
     const item = moduleMap.get(nodeId)!;
-    const deps = item.module.requires ?? [];
+    const deps = getModuleDependencies(item.module, item.params);
 
     for (const depId of deps) {
       if (!visited.has(depId)) {
@@ -64,6 +65,26 @@ export function resolveModuleDependencies<T extends { module: Module<unknown> }>
     }
   }
 
+  // Calculate transitive dependency closure for each module (for reference permission enforcement)
+  for (const id of allIds) {
+    const item = moduleMap.get(id) as T & { allowedModuleIds?: ReadonlySet<string> };
+    const closure = new Set<string>([id]);
+    const queue = [...getModuleDependencies(item.module, item.params)];
+
+    while (queue.length > 0) {
+      const depId = queue.shift()!;
+      if (!closure.has(depId)) {
+        closure.add(depId);
+        const depItem = moduleMap.get(depId);
+        if (depItem) {
+          queue.push(...getModuleDependencies(depItem.module, depItem.params));
+        }
+      }
+    }
+
+    item.allowedModuleIds = closure;
+  }
+
   // 3. Kahn's Algorithm for deterministic topological sort
   // Dependency direction: If A requires B, B must precede A.
   // dependentsMap: B -> [A] (when B finishes, A is unblocked)
@@ -77,7 +98,7 @@ export function resolveModuleDependencies<T extends { module: Module<unknown> }>
 
   for (const id of allIds) {
     const item = moduleMap.get(id)!;
-    const requires = item.module.requires ?? [];
+    const requires = getModuleDependencies(item.module, item.params);
     inDegree.set(id, requires.length);
 
     for (const depId of requires) {

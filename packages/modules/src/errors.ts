@@ -29,6 +29,18 @@ export class MissingDependencyError extends ModuleError {
   }
 }
 
+export class UndeclaredDependencyError extends ModuleError {
+  constructor(
+    public readonly sourceModuleId: string,
+    public readonly referencedModuleId: string,
+  ) {
+    super(
+      `Module '${sourceModuleId}' attempted to reference identities from '${referencedModuleId}', which is not in its declared dependency graph.`,
+    );
+    this.name = 'UndeclaredDependencyError';
+  }
+}
+
 export class CircularDependencyError extends ModuleError {
   constructor(public readonly cyclePath: string[]) {
     super(`Circular dependency detected in modules: ${cyclePath.join(' -> ')}`);

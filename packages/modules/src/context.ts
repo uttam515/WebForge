@@ -28,6 +28,8 @@ import {
 } from '@webforge/spec';
 import type { ModuleContext } from './types.js';
 
+import { UndeclaredDependencyError } from './errors.js';
+
 /**
  * Standard deterministic ModuleContext implementation.
  *
@@ -38,15 +40,27 @@ import type { ModuleContext } from './types.js';
  * 3. IDs never encode semantic UI labels, so label changes never break identity.
  * 4. IDs never use random values, time, or process-specific state.
  * 5. Cross-module references use `ctx.forModule(dependencyModuleId)` instead of hardcoding raw strings.
+ * 6. Cross-module references are validated against declared compilation dependencies.
  */
 export class DefaultModuleContext implements ModuleContext {
-  constructor(public readonly moduleId: string) {}
+  constructor(
+    public readonly moduleId: string,
+    public readonly allowedModuleIds?: ReadonlySet<string>,
+  ) {}
 
   /**
    * Returns a ModuleContext scoped to another module, enabling typed cross-module identity references.
+   * Throws UndeclaredDependencyError if the target module is not in the declared dependency graph.
    */
   forModule(moduleId: string): ModuleContext {
-    return new DefaultModuleContext(moduleId);
+    if (
+      this.allowedModuleIds &&
+      moduleId !== this.moduleId &&
+      !this.allowedModuleIds.has(moduleId)
+    ) {
+      throw new UndeclaredDependencyError(this.moduleId, moduleId);
+    }
+    return new DefaultModuleContext(moduleId, this.allowedModuleIds);
   }
 
   private sanitize(slotKey: string): string {
