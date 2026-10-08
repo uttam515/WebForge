@@ -295,9 +295,15 @@ importers:
 
   packages/compiler:
     dependencies:
+      '@webforge/modules':
+        specifier: workspace:*
+        version: link:../modules
       '@webforge/spec':
         specifier: workspace:*
         version: link:../spec
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.3

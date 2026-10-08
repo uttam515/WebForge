@@ -423,6 +423,7 @@ describe('@webforge/modules - Determinism, Opaque Identities & Cross-Module Refe
             },
           ],
           signup: {
+            enabled: true,
             defaultRoleId: ctx.toRoleId('user'),
           },
         },
@@ -550,6 +551,7 @@ describe('@webforge/modules - Full AppSpec Structural & Semantic Validation', ()
             },
           ],
           signup: {
+            enabled: true,
             defaultRoleId: ctx.toRoleId('member'),
           },
         },

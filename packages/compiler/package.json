@@ -17,7 +17,9 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@webforge/spec": "workspace:*"
+    "@webforge/modules": "workspace:*",
+    "@webforge/spec": "workspace:*",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "typescript": "^5.7.3"

@@ -204,7 +204,7 @@ export interface Module<P> {
   readonly id: string;
 
   /** Zod schema for validating input parameters */
-  readonly params: z.ZodType<P>;
+  readonly params: z.ZodType<P, z.ZodTypeDef, unknown>;
 
   /** List of module IDs that must be executed before this module */
   readonly requires?: string[];
